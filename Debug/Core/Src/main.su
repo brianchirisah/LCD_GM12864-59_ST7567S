@@ -1,0 +1,13 @@
+../Core/Src/main.c:91:6:draw_horizontal_line	56	static
+../Core/Src/main.c:112:6:multi_horizontal_line	56	static
+../Core/Src/main.c:172:6:draw_vertical_line	64	static
+../Core/Src/main.c:219:6:vert_lines	88	dynamic
+../Core/Src/main.c:268:6:draw_cuboid	64	static
+../Core/Src/main.c:291:6:multi_line_text	112	dynamic
+../Core/Src/main.c:362:6:reset_cursor	16	static
+../Core/Src/main.c:376:6:clear_screen	24	static
+../Core/Src/main.c:399:6:I2C_device_address_finder	16	static
+../Core/Src/main.c:421:6:LCD_Init	64	static
+../Core/Src/main.c:460:5:main	16	static
+../Core/Src/main.c:538:6:SystemClock_Config	72	static
+../Core/Src/main.c:577:6:Error_Handler	4	static,ignoring_inline_asm
