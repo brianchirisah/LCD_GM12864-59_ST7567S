@@ -38,7 +38,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define transmit(data, length) HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1), data, length, Timeout)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -76,7 +76,33 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+// ===================================================================================================================================
+//  # SINGLE PIXEL DRAWING FUNCTION #
+// ===================================================================================================================================
+/**
+ * @brief  Draws a horizontal line on screen.
+ * @param  Length in pixels (max 132pixels)
+ * @param  x-coordinate in pixels (max-132pixels) left end
+ * @param  y-coordinate in pixels (max-64pixels) left end
+ */
 
+void draw_pixel(double x_coordinate, double y_coordinate){
+
+	double page = floor(y_coordinate/8);
+	uint8_t pixel_draw[2] = {0x40, 0x80};
+	dot_pattern = 0b00000001 << ((uint8_t) y_coordinate % 8);
+	pixel_draw[1]=dot_pattern;
+	// Extracting 4 MSBs then bitwise OR with '0b0001 0000'
+	Col_addr_MSB[1]= (((uint8_t)x_coordinate >> 4) | 0x10);
+	// Extracting 4 LSBs by bitwise ANDing with '0b0000 1111'
+	Col_addr_LSB[1] = ((uint8_t)x_coordinate & 0x0F);
+	Page_addr[1] = (0xB0 + page);
+	HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1), Page_addr, 2, Timeout); // Set Page Address (Row Address)
+	HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1), Col_addr_MSB, 2, Timeout); // Set Column Most significant Byte Address
+	HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1), Col_addr_LSB, 2, Timeout); // // Set Column Least significant Byte Address
+	HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1), pixel_draw, 2, Timeout);
+	HAL_Delay(1);
+}
 
 // ===================================================================================================================================
 //  # SINGLE HORIZONTAL LINE DRAWING FUNCTION #
@@ -108,7 +134,18 @@ void draw_horizontal_line(double length, double x_coordinate, double y_coordinat
 	}
 	HAL_Delay(1);
 }
-
+// ===================================================================================================================================
+//  # MULTIPLE HORIZONTAL LINE DRAWING FUNCTION #
+// ===================================================================================================================================
+/**
+ * @brief  Draws a horizontal line on screen.
+ * @param  Length in pixels (max 132pixels)
+ * @param  x-coordinate in pixels (max-132pixels) left end
+ * @param  y-coordinate in pixels (max-64pixels) left end
+ * @param  number of lines (max-64pixels)
+ * @param  separation in pixels
+ *
+ */
 void multi_horizontal_line(double length, double x_coordinate, double y_coordinate, uint8_t count, double separation) {
 
 	double page_current = 0;
@@ -157,7 +194,6 @@ void multi_horizontal_line(double length, double x_coordinate, double y_coordina
 	HAL_Delay(1);
 }
 
-
 // ===================================================================================================================================
 //  # VERTICAL LINE DRAWING FUNCTION #
 // ===================================================================================================================================
@@ -169,7 +205,7 @@ void multi_horizontal_line(double length, double x_coordinate, double y_coordina
  *
  */
 
-void draw_vertical_line(double height, double x_coordinate, double y_coordinate){
+/*void draw_vertical_line(double height, double x_coordinate, double y_coordinate){
 
 	uint8_t pixel_draw[2] = {0x40, 0xFF};//pixel_draw_val};
 	uint8_t bit_pattern = 0b11111111;
@@ -200,11 +236,11 @@ void draw_vertical_line(double height, double x_coordinate, double y_coordinate)
 			bit_pattern = bit_pattern & 0b11111111 >> ((uint8_t)y_coordinate%8);
 			height = height - (8-(height + (((uint8_t)y_coordinate%8))));
 		}
-		/*else if(height>8) {
+		else if(height>8) {
 			bit_pattern = 0b11111111 ;
 			height = height - 8;
 			HAL_Delay(1);
-		}*/
+		}
 
 		pixel_draw[1] =bit_pattern;
 		HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1), Page_addr, 2, Timeout); // Set Page Address (Row Address)
@@ -214,9 +250,19 @@ void draw_vertical_line(double height, double x_coordinate, double y_coordinate)
 		Page_addr[1]++;
 		start_page++;
 	}
-}
+}*/
 
-void vert_lines (double height, double x_coordinate, double y_coordinate){
+// ===================================================================================================================================
+//  # VERTICAL LINE DRAWING FUNCTION #
+// ===================================================================================================================================
+/**
+ * @brief  Draws a single vertical line on screen. ************************* * * * * * Might consider option for dashed / dotted lines
+ * @param  height in pixels (max 64-pixels)
+ * @param  x-coordinate in pixels (max-132pixels) top end
+ * @param  y-coordinate in pixels (max-64pixels) top end
+ */
+
+void draw_vertical_line(double height, double x_coordinate, double y_coordinate){
 
 	uint8_t i=0;
 	uint8_t pixel_draw[2] = {0x40, 0xFF};//pixel_draw_val};
@@ -245,7 +291,6 @@ void vert_lines (double height, double x_coordinate, double y_coordinate){
 	bit_pattern = bit_pattern & 0b11111111 << ((uint8_t)y_coordinate%8);
 	bit_pattern = bit_pattern & 0b11111111 >> (8-((uint8_t)height + (uint8_t)y_coordinate%8));
 	pixel_draw[1] =bit_pattern;
-	//}
 	HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1), Col_addr_MSB, 2, Timeout); // Set Column Most significant Byte Address
 	HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1), Col_addr_LSB, 2, Timeout); // Set Column Least significant Byte Address
 	HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1), Page_addr, 2, Timeout); // Set Page Address (Row Address)
@@ -276,6 +321,44 @@ void draw_cuboid(uint8_t length, uint8_t height, uint8_t x_coordinate, uint8_t y
 
 	HAL_Delay(1);
 }
+
+// ===================================================================================================================================
+//  # CIRCLE DRAWING FUNCTION #
+// ===================================================================================================================================
+/**
+ * @brief  Draws a circle on screen, implements Bresenham's circle drawing algorithm.
+ * @param  Length in pixels (2-132pixels)
+ * @param  Height in pixels (2-132pixels)
+ * @param  top left corner x and y coordinate array
+ * @param  filling (1 = on , 0 = Off)
+ * */
+
+void Draw_Circle(int16_t x_center, int16_t y_center, int16_t radius, uint16_t fill) {
+	int16_t x = 0, y = radius;
+	int16_t d = 3 - 2 * radius;
+	volatile static uint16_t track=0;
+	while (y >= x) {
+		draw_pixel(x_center + x, y_center + y);
+		draw_pixel(x_center - x, y_center + y);
+		draw_pixel(x_center + x, y_center - y);
+		draw_pixel(x_center - x, y_center - y);
+		draw_pixel(x_center + y, y_center + x);
+		draw_pixel(x_center - y, y_center + x);
+		draw_pixel(x_center + y, y_center - x);
+		draw_pixel(x_center - y, y_center - x);
+		x++;
+		track = x;
+		if (d > 0) {
+			y--;
+			d = d + 4 * (x - y) + 10;
+		} else {
+			d = d + 4 * x + 6;
+		}
+	}
+	track++;
+
+}
+
 
 // ===================================================================================================================================
 //  # MULTILINE TEXT WRITER FUNCTION #
@@ -311,49 +394,59 @@ void multi_line_text(double start_page, const char string_in[], uint8_t font_nam
 	//max usable pages calculation
 	Send_size = (char_width + 1);
 	char_hex_array[0] = data_prefix;
-	if (input_len <= max_input_len) { // if input_len <= max_input_len : execute code, else print error text
-		pages_needed = ceil(input_len / max_char_per_row);
-		pages_avail = (LCD_pages - (start_page-1));
-		if ( pages_avail < pages_needed) {
-			// Error
-		} else if (pages_avail >= pages_needed ) {
-			for (uint8_t page = start_page; page < (pages_needed+start_page); page++) {
-				Page_addr[1] = (0xAF + page);
-				HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1), Page_addr, 2, Timeout); // Set Page Address (Row Address)
-				HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1), Col_addr_MSB, 2, Timeout); // Set Column Most significant Byte Address
-				HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1), Col_addr_LSB, 2, Timeout); // // Set Column Least significant Byte Address
-				if (page >start_page) {
-					input_pos=max_char_per_row;
-					page_counter++;
-					max_char_per_row = max_char_per_row + (LCD_pixels_width/char_width);
-				}
-				for (uint8_t line_pos = input_pos; line_pos < max_char_per_row; line_pos++) {
-					input_char = string_in[line_pos];
-					hex_font_pos = (char_width * (input_char - font_offset));
-					if (input_len > 0) {
-						for (uint8_t x = line_pos; x < line_pos + char_width; x++) {
-							for (uint8_t char_hex = 0; char_hex < char_width ; char_hex++) { //Sequentially saves the contents of the char_hex_array to the LCD
-								if (inversion==1){
-									char_hex_array[char_hex + 1] = ~LCDFonts[font_name][hex_font_pos + char_hex];
-								}else{
-									char_hex_array[char_hex + 1] = LCDFonts[font_name][hex_font_pos + char_hex];
-									HAL_Delay(1);
-								}
-							}
-						}
-						HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1),char_hex_array, Send_size, Timeout);
-						//HAL_Delay(25);
-						input_len--;
-					}
-				}
-			}
-		}
+	if (input_len > max_input_len) {
+
+		//Error
+		return;
+	}
+	// if input_len <= max_input_len : execute code, else print error text
+	pages_needed = ceil(input_len / max_char_per_row);
+	pages_avail = (LCD_pages - (start_page-1));
+	if ( pages_avail < pages_needed) {
+		// Error
+		return;
 	}
 
-	else {
-		//Error massage
+	for (uint8_t page = start_page; page < (pages_needed+start_page); page++) {
+		Page_addr[1] = (0xAF + page);
+
+		transmit(Page_addr, 2);
+		transmit(Col_addr_MSB, 2);
+		transmit(Col_addr_LSB, 2);
+		//HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1), Page_addr, 2, Timeout); // Set Page Address (Row Address)
+		//HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1), Col_addr_MSB, 2, Timeout); // Set Column Most significant Byte Address
+		//HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1), Col_addr_LSB, 2, Timeout); // // Set Column Least significant Byte Address
+		if (page >start_page) {
+			input_pos=max_char_per_row;
+			page_counter++;
+			max_char_per_row = max_char_per_row + (LCD_pixels_width/char_width);
+		}
+		for (uint8_t line_pos = input_pos; line_pos < max_char_per_row; line_pos++) {
+			input_char = string_in[line_pos];
+			hex_font_pos = (char_width * (input_char - font_offset));
+			if (input_len <= 0) return;
+
+			for (uint8_t x = line_pos; x < line_pos + char_width; x++) {
+				for (uint8_t char_hex = 0; char_hex < char_width ; char_hex++) { //Sequentially saves the contents of the char_hex_array to the LCD
+					if (inversion==1){
+						char_hex_array[char_hex + 1] = ~LCDFonts[font_name][hex_font_pos + char_hex];
+						continue;
+					}
+					char_hex_array[char_hex + 1] = LCDFonts[font_name][hex_font_pos + char_hex];
+					//HAL_Delay(1);
+				}
+			}
+
+			transmit(char_hex_array, Send_size);
+			//HAL_I2C_Master_Transmit(&hi2c1, (LCD_address << 1),char_hex_array, Send_size, Timeout);
+			//HAL_Delay(25);
+			input_len--;
+		}
 	}
 }
+
+
+
 
 // ===================================================================================================================================
 //  # This function will set the cursor position to the top left corner (Page 0, Column 0) #
@@ -503,17 +596,15 @@ int main(void) {
 	multi_line_text(6,"6",0,0);
 	multi_line_text(7,"7",0,0);
 	multi_line_text(8,"8",0,0);
-	//multi_line_text(4,"abc@WXYZ123&$#",0,0);
+	//multi_line_text(4,"abc@WXYZ123&$#",0,1);
 	//multi_line_text(6,"abc@WXYZ123&$#",1,0);
 	//multi_line_text(8,"abc@WXYZ123&$#",1,1);
 	//draw_cuboid(24,24,5,43,1);
 	//draw_horizontal_line(32,16,16);
 	//draw_vertical_line(35,7,2);
 	//multi_horizontal_line(131, 0, 0, 32, 2);
-	vert_lines(33,10, 3);
-	//HAL_Delay(1000);
+	Draw_Circle(63,31,30,1);
 	//draw_cuboid(29, 6,20, 8, 11);
-	//HAL_Delay(1000);
 
 
 	HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
